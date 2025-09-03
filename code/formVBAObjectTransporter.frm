@@ -21,6 +21,7 @@ Private Sub btnExportAll_Click()
     AppUtil.moveAllItems Me.listBoxSourceClassModuleName, Me.listBoxTargetClassModuleName
     AppUtil.moveAllItems Me.listBoxSourceModuleName, Me.listBoxTargetModuleName
     AppUtil.moveAllItems Me.listBoxSourceUserFormName, Me.listBoxTargetUserFormName
+    AppUtil.moveAllItems Me.listBoxSourcePowerQueryName, Me.listBoxTargetPowerQueryName
     
 End Sub
 
@@ -68,6 +69,45 @@ Private Sub btnOIImport_Click()
             wbSource.VBProject.VBComponents.Import sourceModulePath & "\" & itmName
         Next itemCounter
         
+        Set liBox = Me.listBoxOITargetPowerQueryName
+        For itemCounter = 1 To liBox.ListCount
+            Dim qryName As String
+            Dim qryFormula As String
+            Dim fileNum As Integer
+            Dim line As String
+            Dim itmFullPath As String
+            Dim tPQ As WorkbookQuery
+            
+            qryFormula = ""
+            itmName = liBox.List(itemCounter - 1)
+            qryName = CStr(Split(itmName, ".")(0))
+            
+            fileNum = FreeFile
+            itmFullPath = sourceModulePath & "\" & itmName
+            Open itmFullPath For Input As #fileNum
+                Do Until EOF(fileNum)
+                    Line Input #fileNum, line
+                    qryFormula = qryFormula & line & vbCrLf
+                Loop
+            Close #fileNum
+            
+            If checkBoxReplaceExistingObjects.Value Then
+                On Error Resume Next
+                Set tPQ = wbSource.Queries(qryName)
+                If Not tPQ Is Nothing Then tPQ.Delete
+            Else
+                On Error Resume Next
+                Set tPQ = wbSource.Queries(qryName)
+                If Not tPQ Is Nothing Then
+                    qryName = qryName & "_" & Format(Now(), "yyyyMMddhhmmss")
+                End If
+            End If
+            
+            wbSource.Queries.Add Name:=qryName, Formula:=qryFormula
+        Next itemCounter
+                
+                
+                
         MsgBox "Modules Imported Successfully.", vbOKOnly + vbInformation, "Import Status"
         GoTo finalizeResources
     Else
@@ -85,6 +125,7 @@ Private Sub btnOIImportAll_Click()
     AppUtil.moveAllItems Me.listBoxOISourceClassModuleName, Me.listBoxOITargetClassModuleName
     AppUtil.moveAllItems Me.listBoxOISourceFormsName, Me.listBoxOITargetFormsName
     AppUtil.moveAllItems Me.listBoxOISourceModuleName, Me.listBoxOITargetModuleName
+    AppUtil.moveAllItems Me.listBoxOISourcePowerQueryName, Me.listBoxOITargetPowerQueryName
 
 End Sub
 
@@ -93,6 +134,7 @@ Private Sub btnOIRemoveAll_Click()
     AppUtil.moveAllItems Me.listBoxOITargetClassModuleName, Me.listBoxOISourceClassModuleName
     AppUtil.moveAllItems Me.listBoxOITargetFormsName, Me.listBoxOISourceFormsName
     AppUtil.moveAllItems Me.listBoxOITargetModuleName, Me.listBoxOISourceModuleName
+    AppUtil.moveAllItems Me.listBoxOITargetPowerQueryName, Me.listBoxOISourcePowerQueryName
 
 End Sub
 
@@ -116,6 +158,7 @@ Private Sub btnRemoveAll_Click()
     AppUtil.moveAllItems Me.listBoxTargetClassModuleName, Me.listBoxSourceClassModuleName
     AppUtil.moveAllItems Me.listBoxTargetModuleName, Me.listBoxSourceModuleName
     AppUtil.moveAllItems Me.listBoxTargetUserFormName, Me.listBoxSourceUserFormName
+    AppUtil.moveAllItems Me.listBoxTargetPowerQueryName, Me.listBoxSourcePowerQueryName
 
 End Sub
 
@@ -164,6 +207,10 @@ Private Sub listBoxOISourceModuleName_Click()
     UtilListBox.removeAddItem Me.listBoxOISourceModuleName, Me.listBoxOITargetModuleName
 End Sub
 
+Private Sub listBoxOISourcePowerQueryName_Click()
+    UtilListBox.removeAddItem Me.listBoxOISourcePowerQueryName, Me.listBoxOITargetPowerQueryName
+End Sub
+
 Private Sub listBoxOITargetClassModuleName_Click()
     UtilListBox.removeAddItem Me.listBoxOITargetClassModuleName, Me.listBoxOISourceClassModuleName
 End Sub
@@ -176,11 +223,16 @@ Private Sub listBoxOITargetModuleName_Click()
     UtilListBox.removeAddItem Me.listBoxOITargetModuleName, Me.listBoxOISourceModuleName
 End Sub
 
-
-
+Private Sub listBoxOITargetPowerQueryName_Click()
+    UtilListBox.removeAddItem Me.listBoxOITargetPowerQueryName, Me.listBoxOISourcePowerQueryName
+End Sub
 
 Private Sub listBoxSourceClassModuleName_Click()
     UtilListBox.removeAddItem Me.listBoxSourceClassModuleName, Me.listBoxTargetClassModuleName
+End Sub
+
+Private Sub listBoxSourcePowerQueryName_Click()
+    UtilListBox.removeAddItem Me.listBoxSourcePowerQueryName, Me.listBoxTargetPowerQueryName
 End Sub
 
 Private Sub listBoxSourceModuleName_Click()
@@ -199,6 +251,10 @@ Private Sub listBoxTargetClassModuleName_Click()
     UtilListBox.removeAddItem Me.listBoxTargetClassModuleName, Me.listBoxSourceClassModuleName
 End Sub
 
+Private Sub listBoxTargetPowerQueryName_Click()
+    UtilListBox.removeAddItem Me.listBoxTargetPowerQueryName, Me.listBoxSourcePowerQueryName
+End Sub
+
 Private Sub listBoxTargetModuleName_Click()
     UtilListBox.removeAddItem Me.listBoxTargetModuleName, Me.listBoxSourceModuleName
 End Sub
@@ -206,10 +262,6 @@ End Sub
 Private Sub listBoxTargetUserFormName_Click()
     UtilListBox.removeAddItem Me.listBoxTargetUserFormName, Me.listBoxSourceUserFormName
 End Sub
-
-
-
-
 
 Private Sub MultiPage1_Change()
 
@@ -239,6 +291,8 @@ Private Sub textBoxOISourceFolder_Change()
                 Me.listBoxOISourceModuleName.AddItem eachFile.Name
             ElseIf LCase(ttype) = "frm" Then
                 Me.listBoxOISourceFormsName.AddItem eachFile.Name
+            ElseIf LCase(ttype) = "pq" Then
+                Me.listBoxOISourcePowerQueryName.AddItem eachFile.Name
             End If
         Next eachFile
     Else
@@ -251,19 +305,24 @@ Private Sub UserForm_Initialize()
     UtilListBox.CreateListBoxHeader Me.listBoxSourceModuleName, Me.listBoxSourceModuleNameHeading, Array("Module")
     UtilListBox.CreateListBoxHeader Me.listBoxSourceClassModuleName, Me.listBoxSourceClassModuleNameHeading, Array("Class Module")
     UtilListBox.CreateListBoxHeader Me.listBoxSourceUserFormName, Me.listBoxSourceUserFormNameHeading, Array("Forms")
+    UtilListBox.CreateListBoxHeader Me.listBoxSourcePowerQueryName, Me.listBoxSourcePowerQueryNameHeading, Array("Query")
     UtilListBox.CreateListBoxHeader Me.listBoxSourceObjName, Me.listBoxSourceObjNameHeading, Array("Excel Objects")
+    
     UtilListBox.CreateListBoxHeader Me.listBoxTargetModuleName, Me.listBoxTargetModuleNameHeading, Array("Module")
     UtilListBox.CreateListBoxHeader Me.listBoxTargetClassModuleName, Me.listBoxTargetClassModuleNameHeading, Array("Class Module")
+    UtilListBox.CreateListBoxHeader Me.listBoxTargetPowerQueryName, Me.listBoxTargetPowerQueryHeading, Array("Query")
     UtilListBox.CreateListBoxHeader Me.listBoxTargetUserFormName, Me.listBoxTargetUserFormNameHeading, Array("Forms")
 
 
     UtilListBox.CreateListBoxHeader Me.listBoxOISourceModuleName, Me.listBoxOISourceModuleNameHeading, Array("Module")
     UtilListBox.CreateListBoxHeader Me.listBoxOISourceClassModuleName, Me.listBoxOISourceClassModuleNameHeading, Array("Class Module")
     UtilListBox.CreateListBoxHeader Me.listBoxOISourceFormsName, Me.listBoxOISourceFormsNameHeading, Array("Forms")
+    UtilListBox.CreateListBoxHeader Me.listBoxOISourcePowerQueryName, Me.listBoxOISourcePowerQueryHeading, Array("Query")
     
     UtilListBox.CreateListBoxHeader Me.listBoxOITargetModuleName, Me.listBoxOITargetModuleNameHeading, Array("Module")
     UtilListBox.CreateListBoxHeader Me.listBoxOITargetClassModuleName, Me.listBoxOITargetClassModuleNameHeading, Array("Class Module")
     UtilListBox.CreateListBoxHeader Me.listBoxOITargetFormsName, Me.listBoxOITargetFormsNameHeading, Array("Forms")
+    UtilListBox.CreateListBoxHeader Me.listBoxOITargetPowerQueryName, Me.listBoxOITargetPowerQueryHeading, Array("Query")
     Me.lblUserName = "Welcome " & Application.UserName
     Me.MultiPage1.Value = 0
 
@@ -274,12 +333,18 @@ Private Sub txtSelectedFileName_Change()
     Dim sourceFileName As String
     Dim wbSource As Workbook
     Dim comp As Variant
+    Dim qry As WorkbookQuery
                 
     Me.clearAllObjectExportLists
     sourceFileName = Me.txtSelectedFileName.Value
     
     If sourceFileName <> "" Then
         Set wbSource = Workbooks.Open(sourceFileName, False, True)
+        
+        For Each qry In wbSource.Queries
+            Me.listBoxSourcePowerQueryName.AddItem qry.Name
+        Next qry
+        
         For Each comp In wbSource.VBProject.VBComponents
             If comp.Type = 1 Then
                 Me.listBoxSourceModuleName.AddItem comp.Name
@@ -335,10 +400,16 @@ Private Sub btnExport_Click()
     Dim destinationPath As String
     Dim sourceFileName As String
     Dim wbSource As Workbook
+    Dim fso As FileSystemObject
+    Set fso = New FileSystemObject
+    
     sourceFileName = Me.txtSelectedFileName.Value
     destinationPath = Me.txtDestinationFolder.Value
     
     Set wbSource = Workbooks.Open(sourceFileName)
+        
+        
+    
     If destinationPath <> "" Then
         Set liBox = Me.listBoxTargetModuleName
         For itemCounter = 1 To liBox.ListCount
@@ -357,11 +428,29 @@ Private Sub btnExport_Click()
             itmName = liBox.List(itemCounter - 1)
             wbSource.VBProject.VBComponents(itmName).Export destinationPath & "\" & itmName & ".frm"
         Next itemCounter
+        
+        Set liBox = Me.listBoxTargetPowerQueryName
+        For itemCounter = 1 To liBox.ListCount
+            Dim qry As WorkbookQuery
+            Dim exportQryPath As String
+            Dim ts As TextStream
+            
+            itmName = liBox.List(itemCounter - 1)
+            exportQryPath = destinationPath & "\" & itmName & ".pq"
+            Set qry = wbSource.Queries(itmName)
+            Set ts = fso.CreateTextFile(exportQryPath, True)
+            'ts.WriteLine "Query Name : " & itmName
+            ts.WriteLine qry.Formula
+            ts.Close
+        Next itemCounter
+                
         MsgBox "Modules Exported Successfully", vbOKOnly + vbInformation, "Export Status"
         Exit Sub
     Else
         MsgBox "Please select destination path", vbOKOnly + vbExclamation, "Required Field"
     End If
+    
+    
     
 finalizeResource:
     If Not (wbSource Is Nothing) Then
